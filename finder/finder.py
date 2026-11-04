@@ -1,23 +1,38 @@
 #!/usr/bin/env python3
-"""Extract the author email address from a GitHub commit patch."""
+"""This program extract the author email address from a GitHub commit patch."""
 
 from __future__ import annotations
 
 import argparse
 import re
 import sys
+from typing import Final
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 
-DEFAULT_PATCH_URL = (
-    "https://github.com/Dorianfrt/Dataleon-Back-end-Test-case/commit/"
-    "cf75e2b95a1783ef0a7673df710ff97e4b63851d.patch"
-)
 EMAIL_PATTERN = re.compile(
     r"From:\s*[^<\r\n]*<(?P<email>[^>\s]+)>", re.IGNORECASE
 )
+
+GREEN: Final = "\033[92m"
+CYAN: Final = "\033[96m"
+RESET: Final = "\033[0m"
+
+
+def print_result(email: str) -> None:
+    use_color = sys.stdout.isatty()
+    green = GREEN if use_color else ""
+    cyan = CYAN if use_color else ""
+    reset = RESET if use_color else ""
+
+    print()
+    print(f"{cyan}  EMAIL-FINDER v1.0{reset}")
+    print("  -----------------")
+    print(f"  {green}[+] Author email found{reset}")
+    print(f"      {email}")
+    print()
 
 
 class FinderError(RuntimeError):
@@ -36,7 +51,6 @@ def normalize_patch_url(url: str) -> str:
 
 
 def fetch_patch(url: str, timeout: float = 10.0) -> str:
-    """Download and decode a patch from *url*."""
     request = Request(
         normalize_patch_url(url),
         headers={"User-Agent": "email-finder/1.0"},
@@ -50,7 +64,6 @@ def fetch_patch(url: str, timeout: float = 10.0) -> str:
 
 
 def extract_email(patch: str) -> str:
-    """Return the first author email found in a patch header."""
     match = EMAIL_PATTERN.search(patch)
     if not match:
         raise FinderError("no author email found in the patch")
@@ -63,9 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "url",
-        nargs="?",
-        default=DEFAULT_PATCH_URL,
-        help="URL of the patch to inspect (default: the original example URL)",
+        help="URL du commit ou du patch à inspecter",
     )
     parser.add_argument(
         "--timeout",
@@ -81,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         patch = fetch_patch(args.url, timeout=args.timeout)
-        print(extract_email(patch))
+        print_result(extract_email(patch))
     except FinderError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
